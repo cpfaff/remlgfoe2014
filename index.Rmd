@@ -1,0 +1,292 @@
+---
+title       : The EML R package
+subtitle    : Ecological Metadata Language Integration into R
+author      : Claas-Thido Pfaff, Carl Boettiger, Karthik Ram, Matt Jones
+job         : 
+framework   : io2012        # {io2012, html5slides, shower, dzslides, ...}
+highlighter : highlight.js  # {highlight.js, prettify, highlight}
+hitheme     : tomorrow      # 
+widgets     : [mathjax, bootstrap]            # {mathjax, quiz, bootstrap}
+mode        : selfcontained # {standalone, draft}
+knit        : slidify::knit2slides
+---
+
+```{r load_requirements, include=F, eval=T}
+require("EML")
+```
+
+## Introduction
+
+* Ecological Metadata Language (XML)
+  * Allows to describe aspects of data:
+    * Units and categories of data columns
+    * Temporal and spatial coverage ...
+    * Contacts ... and much more
+  * In a structured machine readable way
+  
+* The R package for EML
+  * Introduces a wide spread standard
+  * Well established Statistics environment
+  * Read + Write metadata, Publish (Data + Metadata)
+
+---
+
+## About the package
+  
+* Part of the rOpenSci community
+  * Data-Acess, Vizualisation, Reproducibility... 30+)
+  * rgbif (Global Biodiversity Information Facility)
+  * taxize (20+ Taxonomic Databases for e.g. species name resolving) 
+  * rBEFdata (Access to BEFdata data management platforms)
+  
+* The EML package is developed by:
+
+<img src="assets/img/ropensci_all_developers.png" style="width: 800px;"s/>
+
+---
+
+## Install the package
+
+* Not yet available via CRAN
+* Source code via GitHub
+  * https://github.com/ropensci/EML
+  
+* Devtools (Hadley Wickham)
+  
+```
+install.packages("devtools")
+library("devtools")
+```
+
+* Install from github
+
+```
+install_github("ropensci/EML", build=FALSE, dependencies=c("DEPENDS", "IMPORTS"))
+library("EML")
+```
+
+---
+
+## Read metadata
+  
+* Read metadata from any EML formated source (File, URL, KNB-ID)
+
+```{r reading_befchina_334}
+metadata <- eml_read("http://china.befdata.biow.uni-leipzig.de/datasets/334.eml")
+```
+
+* Then use `eml_get(metadata, "xy")`
+  - csv_filepaths
+  - coverage
+  - contact
+  - unit.defs
+  - col.defs
+  - creator
+  - data.set ...
+
+---
+
+## Read metadata
+  
+```{r extract_creator, eval=T}
+eml_get(metadata, "creator")
+```  
+  
+```{r extract_coverage, eval=T}
+eml_get(metadata, "coverage")
+```
+
+---
+
+## Import data
+
+* Access the data based on metadata information
+  
+```{r read_the_data, include=F, eval=T, cache=T}
+# necessary as the paths in the file coming from BEF-data china are incorrect (needs fix)
+example_dataset = read.csv("http://china.befdata.biow.uni-leipzig.de/datasets/334/download.csv?separate_category_columns=true")
+```
+
+```
+example_dataset = eml_get(metadata, "data.set")
+```
+
+* Just display a subset of it here
+
+```{r display_part_of_the_data}
+example_dataset[1:4, 1:3]
+```
+
+---
+
+## Describe your own
+   
+* Starting with 4 columns of data
+
+```{r dataframe_columns}
+river = c("SAC",  "SAC",   "AM")
+spp   = c("king",  "king", "ccho")
+stg   = c("smolt", "parr", "smolt")
+ct    = c(293,    410,    210)
+```
+
+* Put them together in a `data.frame`
+
+```{r create_dataframe}
+undescribed_data = data.frame(river, spp, stg, ct)
+undescribed_data
+```
+
+---
+
+## Describe your own
+
+* EML package adds `data.set(data.frame, col.defs =, unit.defs =)`
+
+* `col.defs` (plain text definition)
+
+```{r set_column_defs}
+col_defs = c("River site used for collection",
+             "Species common name",
+             "Life Stage",
+             "count of live fish in traps")
+``` 
+
+- `unit.defs` (factor => levels, dates => YYYY or MM-DD-YY, numeric => unit list KNB)
+
+```{r set_unit_defs}
+unit_defs = list(c(SAC = "The Sacramento River", AM = "The American River"),
+                 c(king = "King Salmon", ccho = "Coho Salmon"),
+                 c(parr = "third life stage", smolt = "fourth life stage"),
+                 "number")
+```
+
+---
+
+## Put dataset together
+
+* Put together with `data.set()`
+
+```{r put_together}
+described_dataset = data.set(undescribed_data,
+                             col.defs = col_defs,
+                             unit.defs = unit_defs)
+```
+
+* However there is still general information missing:
+  - title (add now)
+  - absract
+  - temporal and spatial coverage
+  - contact person (add now)
+  - creator
+  - and other things ...
+
+---
+
+## Add contact
+
+* Create person object using
+
+```{r create_person}
+claas = eml_person("Claas-Thido Pfaff <fake@test.com>")
+```
+
+* Coerce to a contact object
+
+```{r coerce_to_contact}
+claas_contact = as(claas, "contact")
+```
+
+* Add an address
+
+```{r add_address}
+address <- new("address",
+               deliveryPoint = "Universität Leipzig, Johannisallee 21",
+               city = "Leipzig",
+               postalCode = "04103",
+               country = "GER")
+claas_contact@address = address
+```
+
+---
+
+## Put together and save
+
+* The `eml()` command assembles everything
+
+```{r assemble_eml, eval = F}
+data <- eml(dat = described_dataset,
+            title = "This is an example title",
+            contact = claas_contact
+            )
+```
+
+* Write out the EML to a file
+
+```{r eval=FALSE}
+eml_write(data, file="mymetadata.eml")
+```
+
+* Publish to figshare (requires `rfigshare` package)
+
+```{r eval = F}
+eml_publish("mymetadata.eml", 
+            description="Example EML file from EML",
+            categories = "Ecology", 
+            tags = "EML", 
+            destination="figshare")
+```
+
+---
+
+## Uploaded to FigShare
+
+<img src="assets/img/uploaded_csv_and_metadata_two_figshare.png" style="width: 800px;"/>
+
+---
+
+## Uploaded to FigShare
+
+* Metadata
+
+<img src="assets/img/uploaded_csv_and_metadata_two_xml_shown.png" style="width: 800px;"/>
+
+* Data
+
+<img src="assets/img/uploaded_csv_and_metadata_two_figshare_csv_shown.png" style="width: 800px;"/>
+
+---
+
+## Wrap-up
+
+* The `EML` package
+  - Access to metadata 
+  - Access to data
+  - From any EML formatted source!
+  - Describe your own data with metadata
+  - Allows publication of citable data products
+
+* This was very brief intro:
+  - Just visit GitHub for more!
+  - https://github.com/ropensci/EML
+
+---
+
+<div class = "flushcenter">
+  <h1>Thanks for your attention!</h1>
+  <h1>Any questions?</h1>
+</div>
+  
+<br>
+ * Find this slides: 
+<br>
+  http://cpfaff.github.io/emlrpackage/#1
+<br>
+ * Find EML package: 
+<br>
+  https://github.com/ropensci/EML
+
+<img src="assets/img/affiliations_gfoe_2014.png" style="width: 400px;", class="flushfooter flushcenter"/>
+
+
+
