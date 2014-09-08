@@ -280,7 +280,7 @@ eml_publish("mymetadata.eml",
 <br>
  * Find this slides: 
 <br>
-  http://cpfaff.github.io/emlrpackage/#1
+  http://cpfaff.github.io/remlgfoe2014
 <br>
  * Find EML package: 
 <br>
